@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  management:
+    image: container-registry.oracle.com/mysql/community-cluster:latest
+    container_name: management
+    hostname: management
+    entrypoint: ["/bin/bash","./entrypoint.sh","ndb_mgmd"]
+    volumes:
+      - management:/var/lib/mysql
+    networks:
+      mysql_network:
+        ipv4_address: 192.168.0.2
+
+  slave1:
+    image: container-registry.oracle.com/mysql/community-cluster:latest
+    container_name: slave1
+    hostname: slave1
+    entrypoint: ["/bin/bash","./entrypoint.sh","ndbd"]
+    volumes:
+      - slave1:/var/lib/mysql
+    # environment:
+    #   MYSQL_ROOT_PASSWORD: thisnodespasswordissecret
+    networks:
+      mysql_network:
+        ipv4_address: 192.168.0.3
+    depends_on:
+      - management
+
+  slave2:
+    image: container-registry.oracle.com/mysql/community-cluster:latest
+    container_name: slave2
+    hostname: slave2
+    entrypoint: ["/bin/bash","./entrypoint.sh","ndbd"]
+    volumes:
+      - slave2:/var/lib/mysql
+    # environment:
+    #   MYSQL_ROOT_PASSWORD: yesanotherpasswordwithpassword
+    networks:
+      mysql_network:
+        ipv4_address: 192.168.0.4
+    depends_on:
+      - management
+
+  master:
+    image: container-registry.oracle.com/mysql/community-cluster:latest
+    container_name: master
+    hostname: master
+    entrypoint: ["/bin/bash","./entrypoint.sh","mysqld"]
+    command:
+      --mysql-native-password=ON
+    volumes:
+      - master:/var/lib/mysql
+    
+      - ./my.cnf:/etc/mysql/my.cnf  # Asegúrate de que este archivo exista
+      - ./mydb_hospital.sql:/docker-entrypoint-initdb.d/mydb_hospital.sql
+      - ./mydb_productos.sql:/docker-entrypoint-initdb.d/mydb_productos.sql
+      - ./mydb_roles.sql:/docker-entrypoint-initdb.d/mydb_roles.sql
+      - ./mydb_cuenta_usuario.sql:/docker-entrypoint-initdb.d/mydb_cuenta_usuario.sql
+      - ./mydb_paciente.sql:/docker-entrypoint-initdb.d/mydb_paciente.sql
+      - ./mydb_doctor.sql:/docker-entrypoint-initdb.d/mydb_doctor.sql
+      - ./mydb_receta.sql:/docker-entrypoint-initdb.d/mydb_receta.sql
+      - ./mydb_consulta.sql:/docker-entrypoint-initdb.d/mydb_consulta.sql
+      - ./mydb_receta_has_productos.sql:/docker-entrypoint-initdb.d/mydb_receta_has_productos.sql
+      - ./alter_users.sql:/docker-entrypoint-initdb.d/alter_users.sql # Monta el archivo SQL
+    ports:
+      - 4306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: thebestfuckingpasswordever
+      MYSQL_DATABASE: mydb
+      MYSQL_USER: myadmin
+      MYSQL_PASSWORD: anothersuperpasswordinnit
+    networks:
+      mysql_network:
+        ipv4_address: 192.168.0.10
+    depends_on:
+      - management
+
+networks:
+  mysql_network:
+    name: mysql_network
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.0.0/16
+
+volumes:
+  management:
+  slave1:
+  slave2:
+  master:
